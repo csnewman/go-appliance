@@ -18,6 +18,11 @@ const (
 	GPTSignature     = 0x5452415020494645
 )
 
+var (
+	GPTTypeMicrosoftBasicData = uuid.MustParse("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7")
+	GPTTypeLinuxFileSystem    = uuid.MustParse("0FC63DAF-8483-4772-8E79-3D69D8477DE4")
+)
+
 type GPT struct {
 	Signature      uint64
 	Revision       uint32
@@ -40,16 +45,16 @@ var (
 	ErrGPTUnsupported = errors.New("GPT version unsupported")
 )
 
-func NewGPT(diskBlocks uint64, primary bool) (*GPT, error) {
+func NewGPT(diskBlocks uint64) (*GPT, *GPT, error) {
 	partBlocks := 32
 	partCount := (BlockSize / GPTPartitionSize) * partBlocks
 
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	gpt := &GPT{
+	primary := &GPT{
 		Signature:      GPTSignature,
 		Revision:       GPTVersion210,
 		Size:           GPTSize,
@@ -66,13 +71,24 @@ func NewGPT(diskBlocks uint64, primary bool) (*GPT, error) {
 		PartitionsCRC:  0,
 	}
 
-	if !primary {
-		gpt.ThisLBA = gpt.AlternativeLBA
-		gpt.AlternativeLBA = 1
-		gpt.PartitionsLBA = diskBlocks - 1 - uint64(partCount)
+	secondary := &GPT{
+		Signature:      primary.Signature,
+		Revision:       primary.Revision,
+		Size:           primary.Size,
+		Checksum:       0,
+		Reserved:       primary.Reserved,
+		ThisLBA:        primary.AlternativeLBA,
+		AlternativeLBA: primary.ThisLBA,
+		DataFirst:      primary.DataFirst,
+		DataLast:       primary.DataLast,
+		GUID:           primary.GUID,
+		PartitionsLBA:  diskBlocks - 1 - uint64(partBlocks),
+		PartitionCount: primary.PartitionCount,
+		EntrySize:      primary.EntrySize,
+		PartitionsCRC:  0,
 	}
 
-	return gpt, nil
+	return primary, secondary, nil
 }
 
 func ParseGPT(data []byte) (*GPT, error) {
@@ -226,6 +242,22 @@ type GPTPartition struct {
 	EndLBA     uint64
 	Attributes uint64
 	Name       string
+}
+
+func NewGPTPartition(ty uuid.UUID, start uint64, end uint64, name string) (GPTPartition, error) {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return GPTPartition{}, err
+	}
+
+	return GPTPartition{
+		Type:       ty,
+		ID:         id,
+		StartLBA:   start,
+		EndLBA:     end,
+		Attributes: 0,
+		Name:       name,
+	}, nil
 }
 
 func ParseGPTPartitions(reader io.ReaderAt, start uint64, size uint32, count uint32) ([]GPTPartition, uint32, error) {
