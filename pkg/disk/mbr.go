@@ -26,7 +26,7 @@ type MBR struct {
 }
 
 var CHSInvalid = CHSAddr{
-	Head:     0xFE,
+	Head:     0xFF,
 	Sector:   0xFF,
 	Cylinder: 0xFF,
 }
