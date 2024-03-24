@@ -1,0 +1,30 @@
+linters:
+  enable-all: true
+  disable:
+    # deprecated
+    - structcheck
+    - ifshort
+    - interfacer
+    - deadcode
+    - nosnakecase
+    - maligned
+    - varcheck
+    - golint
+    - scopelint
+    - exhaustivestruct
+    # not helpful
+    - maligned
+    - depguard
+    - exhaustivestruct
+    - exhaustruct
+    - gochecknoglobals
+    - gomnd
+    - nosnakecase
+    - paralleltest
+    - testpackage
+    - varnamelen
+    - wrapcheck
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - ifElseChain
