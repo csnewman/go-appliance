@@ -89,6 +89,23 @@ func (d *Disk) ReadGPT(lba uint64) (*GPT, error) {
 	return ParseGPT(data[:])
 }
 
+func (d *Disk) WriteGPT(lba uint64, gpt *GPT) error {
+	var data [GPTSize]byte
+
+	gpt.FillBytes(data[:])
+
+	size, err := d.file.WriteAt(data[:], int64(lba*BlockSize))
+	if err != nil {
+		return fmt.Errorf("failed to write gpt blob: %w", err)
+	}
+
+	if size != GPTSize {
+		return fmt.Errorf("%w: gpt write too short", io.ErrUnexpectedEOF)
+	}
+
+	return nil
+}
+
 func (d *Disk) ReadGPTPartitions(start uint64, size uint32, count uint32) ([]GPTPartition, uint32, error) {
 	return ParseGPTPartitions(d.file, start, size, count)
 }

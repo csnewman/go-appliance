@@ -40,6 +40,41 @@ var (
 	ErrGPTUnsupported = errors.New("GPT version unsupported")
 )
 
+func NewGPT(diskBlocks uint64, primary bool) (*GPT, error) {
+	partBlocks := 32
+	partCount := (BlockSize / GPTPartitionSize) * partBlocks
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+
+	gpt := &GPT{
+		Signature:      GPTSignature,
+		Revision:       GPTVersion210,
+		Size:           GPTSize,
+		Checksum:       0,
+		Reserved:       0,
+		ThisLBA:        1,
+		AlternativeLBA: diskBlocks - 1,
+		DataFirst:      uint64(partBlocks + 2),
+		DataLast:       diskBlocks - 2 - uint64(partCount),
+		GUID:           id,
+		PartitionsLBA:  2,
+		PartitionCount: uint32(partCount),
+		EntrySize:      GPTPartitionSize,
+		PartitionsCRC:  0,
+	}
+
+	if !primary {
+		gpt.ThisLBA = gpt.AlternativeLBA
+		gpt.AlternativeLBA = 1
+		gpt.PartitionsLBA = diskBlocks - 1 - uint64(partCount)
+	}
+
+	return gpt, nil
+}
+
 func ParseGPT(data []byte) (*GPT, error) {
 	if len(data) < 16 {
 		return nil, io.ErrUnexpectedEOF
