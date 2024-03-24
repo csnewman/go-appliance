@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+const BlockSize = 512
+
 type Disk struct {
 	file *os.File
 }
@@ -70,4 +72,27 @@ func (d *Disk) WriteMBR(mbr *MBR) error {
 	}
 
 	return nil
+}
+
+func (d *Disk) ReadGPT(lba uint64) (*GPT, error) {
+	var data [GPTSize]byte
+
+	size, err := d.file.ReadAt(data[:], int64(lba*BlockSize))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read gpt blob: %w", err)
+	}
+
+	if size != GPTSize {
+		return nil, fmt.Errorf("%w: gpt read too short", io.ErrUnexpectedEOF)
+	}
+
+	return ParseGPT(data[:])
+}
+
+func (d *Disk) ReadGPTPartitions(start uint64, size uint32, count uint32) ([]GPTPartition, uint32, error) {
+	return ParseGPTPartitions(d.file, start, size, count)
+}
+
+func (d *Disk) WriteGPTPartitions(start uint64, size uint32, parts []GPTPartition) (uint32, error) {
+	return WriteGPTPartitions(d.file, start, size, parts)
 }
